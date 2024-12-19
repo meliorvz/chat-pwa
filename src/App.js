@@ -94,6 +94,33 @@ const MODELS = {
       temperature: 0.5,
       max_tokens: 1024
     }
+  },
+  'llama-3.1-small': {
+    backend: 'perplexity',
+    modelId: 'llama-3.1-sonar-small-128k-online',
+    label: 'Llama 3.1 Small (8B)',
+    parameters: {
+      temperature: 0.7,
+      max_tokens: 4096
+    }
+  },
+  'llama-3.1-large': {
+    backend: 'perplexity',
+    modelId: 'llama-3.1-sonar-large-128k-online', 
+    label: 'Llama 3.1 Large (70B)',
+    parameters: {
+      temperature: 0.7,
+      max_tokens: 4096
+    }
+  },
+  'llama-3.1-huge': {
+    backend: 'perplexity',
+    modelId: 'llama-3.1-sonar-huge-128k-online',
+    label: 'Llama 3.1 Huge (405B)',
+    parameters: {
+      temperature: 0.7,
+      max_tokens: 4096
+    }
   }
 };
 
@@ -111,11 +138,12 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [currentModel, setCurrentModel] = useState('o1-mini');
+  const [currentModel, setCurrentModel] = useState('llama-3.1-small');
   const [apiKeys, setApiKeys] = useState({
     openai: '',
     anthropic: '',
-    xai: ''
+    xai: '',
+    perplexity: ''
   });
   
   const messagesEndRef = useRef(null);
@@ -269,6 +297,66 @@ function App() {
           console.error('XAI API error:', error);
           throw error;
         }
+      } else if (model.backend === 'perplexity') {
+        try {
+          console.log('Perplexity API request config:', {
+            url: 'https://api.perplexity.ai/chat/completions',
+            headers: {
+              'Authorization': 'Bearer ' + (apiKeys.perplexity ? '[PRESENT]' : '[MISSING]'),
+              'Content-Type': 'application/json'
+            },
+            model: model.modelId,
+            messages: [...messages, userMessage].map(msg => ({
+              role: msg.role === 'assistant' ? 'assistant' : 'user',
+              content: msg.content
+            }))
+          });
+
+          const apiResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKeys.perplexity}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: model.modelId,
+              messages: [...messages, userMessage].map(msg => ({
+                role: msg.role === 'assistant' ? 'assistant' : 'user',
+                content: msg.content
+              })),
+              temperature: model.parameters.temperature,
+              max_tokens: model.parameters.max_tokens
+            })
+          });
+
+          console.log('Perplexity API response status:', apiResponse.status);
+          
+          if (!apiResponse.ok) {
+            const errorData = await apiResponse.json().catch(() => null);
+            console.error('Perplexity API detailed error:', {
+              status: apiResponse.status,
+              statusText: apiResponse.statusText,
+              headers: Object.fromEntries([...apiResponse.headers]),
+              error: errorData
+            });
+            if (apiResponse.status === 429) {
+              throw new Error('Rate limit exceeded. Please try again later.');
+            }
+            throw new Error(errorData?.error?.message || `HTTP error! status: ${apiResponse.status}`);
+          }
+
+          const completion = await apiResponse.json();
+          console.log('Perplexity API response:', completion);
+          
+          if (completion.choices && completion.choices[0] && completion.choices[0].message) {
+            response = completion.choices[0].message;
+          } else {
+            throw new Error('Invalid response format from Perplexity API');
+          }
+        } catch (error) {
+          console.error('Perplexity API error:', error);
+          throw error;
+        }
       }
 
       setMessages(prev => [...prev, response]);
@@ -351,6 +439,14 @@ function App() {
             type="password"
             value={apiKeys.xai}
             onChange={(e) => setApiKeys(prev => ({ ...prev, xai: e.target.value }))}
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Perplexity API Key"
+            type="password"
+            value={apiKeys.perplexity}
+            onChange={(e) => setApiKeys(prev => ({ ...prev, perplexity: e.target.value }))}
           />
         </DialogContent>
         <DialogActions>
