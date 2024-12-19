@@ -28,7 +28,7 @@ import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { openDB } from 'idb';
 
-const DB_NAME = 'chat-pwa-db';
+const DB_NAME = 'chat-diy-db';
 const STORE_NAME = 'api-keys';
 
 const MODELS = {
@@ -66,18 +66,6 @@ const MODELS = {
     parameters: {
       temperature: 0.7,
       maxTokens: 4096,
-    }
-  },
-  'o1-mini': {
-    backend: 'openai',
-    modelId: 'o1-mini',
-    label: 'ChatGPT o1 Mini',
-    parameters: {
-      temperature: 1,
-      maxTokens: 2048,
-    },
-    parameterMap: {
-      maxTokens: 'max_completion_tokens'
     }
   }
 };
@@ -144,18 +132,10 @@ function App() {
       
       if (model.backend === 'openai') {
         const openai = new OpenAI({ apiKey: apiKeys.openai });
-        const apiParams = {};
-        
-        // Map parameters according to model's requirements
-        Object.entries(model.parameters).forEach(([key, value]) => {
-          const mappedKey = model.parameterMap?.[key] || key;
-          apiParams[mappedKey] = value;
-        });
-
         const completion = await openai.chat.completions.create({
           model: model.modelId,
           messages: [...messages, userMessage],
-          ...apiParams
+          ...model.parameters
         });
         response = completion.choices[0].message;
       } else if (model.backend === 'anthropic') {
@@ -192,7 +172,7 @@ function App() {
             <Menu />
           </IconButton>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            AI Chat
+            ChatDIY
           </Typography>
           <IconButton color="inherit" onClick={() => setSettingsOpen(true)}>
             <Settings />
@@ -251,66 +231,66 @@ function App() {
         </DialogActions>
       </Dialog>
 
-      <Container maxWidth="md" sx={{ mt: 10, mb: 8 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)' }}>
-          <Paper 
-            elevation={3} 
-            sx={{ 
-              flex: 1, 
-              mb: 2, 
-              p: 2, 
-              overflow: 'auto',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            {messages.map((message, index) => (
-              <Box
-                key={index}
+      <Container maxWidth="md" sx={{ mt: 8, mb: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            flex: 1, 
+            mb: 2, 
+            p: 2, 
+            overflow: 'auto',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          {messages.map((message, index) => (
+            <Box
+              key={index}
+              sx={{
+                mb: 2,
+                alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                maxWidth: '80%'
+              }}
+            >
+              <Paper
+                elevation={1}
                 sx={{
-                  mb: 2,
-                  alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '80%'
+                  p: 2,
+                  backgroundColor: message.role === 'user' ? 'primary.light' : 'grey.100'
                 }}
               >
-                <Paper
-                  elevation={1}
-                  sx={{
-                    p: 2,
-                    backgroundColor: message.role === 'user' ? 'primary.light' : 'grey.100'
-                  }}
-                >
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
-                </Paper>
-              </Box>
-            ))}
-            <div ref={messagesEndRef} />
-          </Paper>
-          
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField
-              fullWidth
-              multiline
-              maxRows={4}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              disabled={isLoading}
-            />
-            <Button
-              variant="contained"
-              onClick={handleSend}
-              disabled={isLoading}
-              sx={{ minWidth: 100 }}
-            >
-              <Send />
-            </Button>
-          </Box>
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </Paper>
+            </Box>
+          ))}
+          <div ref={messagesEndRef} />
+        </Paper>
+
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <TextField
+            fullWidth
+            variant="outlined"
+            placeholder="Type your message..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            disabled={isLoading}
+            multiline
+            maxRows={4}
+          />
+          <Button
+            variant="contained"
+            onClick={handleSend}
+            disabled={isLoading}
+            sx={{ minWidth: 100 }}
+          >
+            <Send />
+          </Button>
         </Box>
       </Container>
     </Box>

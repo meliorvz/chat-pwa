@@ -10,13 +10,13 @@ precacheAndRoute(self.__WB_MANIFEST);
 
 // Cache the Google Fonts stylesheets with a stale-while-revalidate strategy.
 registerRoute(
-  ({url}) => url.origin === 'https://fonts.googleapis.com',
+  /^https:\/\/fonts\.googleapis\.com/,
   new CacheFirst()
 );
 
 // Cache the underlying font files with a cache-first strategy for 1 year.
 registerRoute(
-  ({url}) => url.origin === 'https://fonts.gstatic.com',
+  /^https:\/\/fonts\.gstatic\.com/,
   new CacheFirst({
     cacheName: 'google-fonts-webfonts',
     plugins: [
