@@ -17,15 +17,18 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  // eslint-disable-next-line no-unused-vars
   Select,
+  // eslint-disable-next-line no-unused-vars
   MenuItem,
+  // eslint-disable-next-line no-unused-vars
   FormControl,
+  // eslint-disable-next-line no-unused-vars
   InputLabel
 } from '@mui/material';
 import { Settings, Send, Menu } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
 import { openDB } from 'idb';
 
 const DB_NAME = 'chat-diy-db';
@@ -38,34 +41,58 @@ const MODELS = {
     label: 'Claude Haiku',
     parameters: {
       temperature: 0.7,
-      maxTokens: 4096,
+      max_tokens: 4096
     }
   },
   'claude-sonnet': {
     backend: 'anthropic',
-    modelId: 'claude-3-sonnet-20240307',
+    modelId: 'claude-3-5-sonnet-latest',
     label: 'Claude Sonnet',
     parameters: {
       temperature: 0.7,
-      maxTokens: 4096,
+      max_tokens: 4096
     }
   },
-  'gpt-4': {
+  'gpt-4o': {
     backend: 'openai',
-    modelId: 'gpt-4-turbo-preview',
-    label: 'GPT-4 Turbo',
+    modelId: 'gpt-4o',
+    label: 'GPT-4o',
     parameters: {
       temperature: 0.7,
-      maxTokens: 4096,
+      max_tokens: 4096
+    },
+    parameterMap: {
+      max_tokens: 'max_tokens'
     }
   },
-  'gpt-3.5-turbo': {
+  'o1-mini': {
     backend: 'openai',
-    modelId: 'gpt-3.5-turbo',
-    label: 'GPT-3.5 Turbo',
+    modelId: 'o1-mini',
+    label: 'ChatGPT o1 Mini',
     parameters: {
-      temperature: 0.7,
-      maxTokens: 4096,
+      temperature: 1,
+      max_tokens: 2048
+    },
+    parameterMap: {
+      max_tokens: 'max_completion_tokens'
+    }
+  },
+  'grok-beta': {
+    backend: 'xai',
+    modelId: 'grok-beta',
+    label: 'Grok Beta',
+    parameters: {
+      temperature: 0.6,
+      max_tokens: 2048
+    }
+  },
+  'grok-2-1212': {
+    backend: 'xai',
+    modelId: 'grok-2-1212',
+    label: 'Grok 2-1212',
+    parameters: {
+      temperature: 0.5,
+      max_tokens: 1024
     }
   }
 };
@@ -84,10 +111,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [currentModel, setCurrentModel] = useState('gpt-3.5-turbo');
+  const [currentModel, setCurrentModel] = useState('o1-mini');
   const [apiKeys, setApiKeys] = useState({
     openai: '',
-    anthropic: ''
+    anthropic: '',
+    xai: ''
   });
   
   const messagesEndRef = useRef(null);
@@ -131,21 +159,116 @@ function App() {
       let response;
       
       if (model.backend === 'openai') {
-        const openai = new OpenAI({ apiKey: apiKeys.openai });
+        const openai = new OpenAI({ 
+          apiKey: apiKeys.openai, 
+          dangerouslyAllowBrowser: true 
+        });
+        
+        // Format messages for OpenAI
+        const formattedMessages = [...messages, userMessage].map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+
+        // Map parameters according to model's parameter map
+        const apiParams = {};
+        Object.entries(model.parameters).forEach(([key, value]) => {
+          const mappedKey = model.parameterMap?.[key] || key;
+          apiParams[mappedKey] = value;
+        });
+
         const completion = await openai.chat.completions.create({
           model: model.modelId,
-          messages: [...messages, userMessage],
-          ...model.parameters
+          messages: formattedMessages,
+          ...apiParams
         });
         response = completion.choices[0].message;
       } else if (model.backend === 'anthropic') {
-        const anthropic = new Anthropic({ apiKey: apiKeys.anthropic });
-        const completion = await anthropic.messages.create({
-          model: model.modelId,
-          messages: [...messages, userMessage],
-          ...model.parameters
-        });
-        response = { role: 'assistant', content: completion.content[0].text };
+        try {
+          const apiResponse = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKeys.anthropic,
+              'anthropic-version': '2023-06-01',
+              'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+              model: model.modelId,
+              max_tokens: model.parameters.max_tokens,
+              temperature: model.parameters.temperature,
+              messages: [...messages, userMessage].map(msg => ({
+                role: msg.role === 'assistant' ? 'assistant' : 'user',
+                content: [{ 
+                  type: 'text', 
+                  text: msg.content 
+                }]
+              }))
+            })
+          });
+
+          if (!apiResponse.ok) {
+            const errorData = await apiResponse.json().catch(() => null);
+            throw new Error(errorData?.error?.message || `HTTP error! status: ${apiResponse.status}`);
+          }
+
+          const completion = await apiResponse.json();
+          
+          if (completion.content && completion.content[0] && completion.content[0].text) {
+            response = { 
+              role: 'assistant', 
+              content: completion.content[0].text 
+            };
+          } else {
+            throw new Error('Invalid response format from Anthropic API');
+          }
+        } catch (error) {
+          console.error('Anthropic API error:', error);
+          throw error;
+        }
+      } else if (model.backend === 'xai') {
+        try {
+          const apiResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKeys.xai}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: model.modelId,
+              messages: [
+                { 
+                  role: "system", 
+                  content: "You are Grok, a chatbot inspired by the Hitchhiker's Guide to the Galaxy." 
+                },
+                ...messages.map(msg => ({
+                  role: msg.role,
+                  content: msg.content
+                })),
+                userMessage
+              ],
+              temperature: model.parameters.temperature,
+              max_tokens: model.parameters.max_tokens,
+              stream: false
+            })
+          });
+
+          if (!apiResponse.ok) {
+            const errorData = await apiResponse.json().catch(() => null);
+            throw new Error(errorData?.error?.message || `HTTP error! status: ${apiResponse.status}`);
+          }
+
+          const completion = await apiResponse.json();
+          
+          if (completion.choices && completion.choices[0] && completion.choices[0].message) {
+            response = completion.choices[0].message;
+          } else {
+            throw new Error('Invalid response format from XAI API');
+          }
+        } catch (error) {
+          console.error('XAI API error:', error);
+          throw error;
+        }
       }
 
       setMessages(prev => [...prev, response]);
@@ -220,6 +343,14 @@ function App() {
             type="password"
             value={apiKeys.anthropic}
             onChange={(e) => setApiKeys(prev => ({ ...prev, anthropic: e.target.value }))}
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label="XAI API Key"
+            type="password"
+            value={apiKeys.xai}
+            onChange={(e) => setApiKeys(prev => ({ ...prev, xai: e.target.value }))}
           />
         </DialogContent>
         <DialogActions>
