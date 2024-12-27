@@ -68,7 +68,7 @@ const MODELS = {
   'o1-mini': {
     backend: 'openai',
     modelId: 'o1-mini',
-    label: 'ChatGPT o1 Mini',
+    label: 'o1 Mini',
     parameters: {
       temperature: 1,
       max_tokens: 2048
@@ -89,7 +89,7 @@ const MODELS = {
   'grok-2-1212': {
     backend: 'xai',
     modelId: 'grok-2-1212',
-    label: 'Grok 2-1212',
+    label: 'Grok 2',
     parameters: {
       temperature: 0.5,
       max_tokens: 1024
@@ -98,7 +98,7 @@ const MODELS = {
   'llama-3.1-small': {
     backend: 'perplexity',
     modelId: 'llama-3.1-sonar-small-128k-online',
-    label: 'Llama 3.1 Small (8B)',
+    label: 'Perplexity (Llama 3.1 8B)',
     parameters: {
       temperature: 0.7,
       max_tokens: 4096
@@ -107,7 +107,7 @@ const MODELS = {
   'llama-3.1-large': {
     backend: 'perplexity',
     modelId: 'llama-3.1-sonar-large-128k-online', 
-    label: 'Llama 3.1 Large (70B)',
+    label: 'Perplexity (Llama 3.1 70B)',
     parameters: {
       temperature: 0.7,
       max_tokens: 4096
@@ -116,7 +116,16 @@ const MODELS = {
   'llama-3.1-huge': {
     backend: 'perplexity',
     modelId: 'llama-3.1-sonar-huge-128k-online',
-    label: 'Llama 3.1 Huge (405B)',
+    label: 'Perplexity (Llama 3.1 405B)',
+    parameters: {
+      temperature: 0.7,
+      max_tokens: 4096
+    }
+  },
+  'deepseek-chat': {
+    backend: 'deepseek',
+    modelId: 'deepseek-chat',
+    label: 'DeepSeek',
     parameters: {
       temperature: 0.7,
       max_tokens: 4096
@@ -138,12 +147,13 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [currentModel, setCurrentModel] = useState('llama-3.1-small');
+  const [currentModel, setCurrentModel] = useState('deepseek-chat');
   const [apiKeys, setApiKeys] = useState({
     openai: '',
     anthropic: '',
     xai: '',
-    perplexity: ''
+    perplexity: '',
+    deepseek: ''
   });
   
   const messagesEndRef = useRef(null);
@@ -357,6 +367,27 @@ function App() {
           console.error('Perplexity API error:', error);
           throw error;
         }
+      } else if (model.backend === 'deepseek') {
+        const openai = new OpenAI({ 
+          baseURL: 'https://api.deepseek.com',
+          apiKey: apiKeys.deepseek,
+          dangerouslyAllowBrowser: true 
+        });
+        
+        // Format messages for Deepseek - convert 'assistant' role to 'system'
+        const formattedMessages = [...messages, userMessage].map(msg => ({
+          role: msg.role === 'assistant' ? 'system' : 'user',
+          content: msg.content
+        }));
+
+        const completion = await openai.chat.completions.create({
+          model: model.modelId,
+          messages: formattedMessages,
+          temperature: model.parameters.temperature,
+          max_tokens: model.parameters.max_tokens
+        });
+        
+        response = completion.choices[0].message;
       }
 
       setMessages(prev => [...prev, response]);
@@ -447,6 +478,14 @@ function App() {
             type="password"
             value={apiKeys.perplexity}
             onChange={(e) => setApiKeys(prev => ({ ...prev, perplexity: e.target.value }))}
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Deepseek API Key"
+            type="password"
+            value={apiKeys.deepseek}
+            onChange={(e) => setApiKeys(prev => ({ ...prev, deepseek: e.target.value }))}
           />
         </DialogContent>
         <DialogActions>
