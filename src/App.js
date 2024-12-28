@@ -634,9 +634,10 @@ function App() {
                   component="div" 
                   sx={{ 
                     fontFamily: 'var(--font-family)',
-                    fontSize: '0.9rem',
+                    fontSize: '1rem',
                     mb: 1,
-                    opacity: 0.7
+                    opacity: 0.7,
+                    textTransform: 'uppercase'
                   }}
                 >
                   {message.model?.label || MODELS[currentModel].label}
@@ -675,7 +676,7 @@ function App() {
           }}>
             $
           </Typography>
-          <Box sx={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
             <TextField
               fullWidth
               variant="standard"
@@ -691,15 +692,17 @@ function App() {
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               disabled={isLoading}
-              multiline={false}
+              multiline
+              maxRows={8}
               className="terminal-input"
               InputProps={{
                 disableUnderline: true,
                 sx: {
                   fontFamily: 'var(--font-family)',
                   fontSize: '1rem',
-                  height: '24px',
-                  lineHeight: '24px'
+                  minHeight: '24px',
+                  lineHeight: '24px',
+                  color: 'var(--text-color)'
                 }
               }}
             />

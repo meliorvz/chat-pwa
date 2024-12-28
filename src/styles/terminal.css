@@ -2,6 +2,7 @@
   --font-family: "JetBrains Mono", monospace;
   --line-height: 1.5;
   --border-thickness: 1px;
+  --font-size: 1rem;
   
   /* Light mode colors (default) */
   --text-color: #000000;
@@ -31,7 +32,7 @@
 
 body {
   font-family: var(--font-family);
-  font-size: 16px;
+  font-size: var(--font-size);
   line-height: var(--line-height);
   color: var(--text-color);
   background: var(--background-color);
@@ -45,11 +46,13 @@ body {
   white-space: pre-wrap;
   word-wrap: break-word;
   font-family: var(--font-family);
+  font-size: var(--font-size);
 }
 
 .terminal-line {
   display: block;
   padding: 0.25rem 0;
+  font-size: var(--font-size);
 }
 
 /* Input styling */
@@ -57,19 +60,54 @@ body {
   background-color: transparent !important;
   color: var(--text-color) !important;
   font-family: var(--font-family) !important;
-  font-size: 16px !important;
+  font-size: var(--font-size) !important;
   line-height: 24px !important;
+  width: 100% !important;
+  overflow-x: hidden !important;
 }
 
 .terminal-input .MuiInputBase-root {
-  height: 24px !important;
   padding: 0 !important;
+  color: var(--text-color) !important;
+  font-size: var(--font-size) !important;
+  min-height: 24px !important;
+  width: 100% !important;
+  overflow-x: hidden !important;
 }
 
 .terminal-input .MuiInputBase-input {
   padding: 0 !important;
-  height: 24px !important;
+  min-height: 24px !important;
   line-height: 24px !important;
+  color: var(--text-color) !important;
+  font-size: var(--font-size) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: 192px !important; /* 8 rows * 24px line height */
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--scrollbar-color) transparent !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  width: 100% !important;
+}
+
+.terminal-input .MuiInputBase-input::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.terminal-input .MuiInputBase-input::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.terminal-input .MuiInputBase-input::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-color) !important;
+  border-radius: 3px !important;
+}
+
+.terminal-input .MuiInputLabel-root {
+  color: var(--text-color) !important;
+  opacity: 0.7;
+  font-size: var(--font-size) !important;
 }
 
 /* Cursor animation */
@@ -93,6 +131,7 @@ body {
   padding: 1rem;
   margin: 0.5rem 0;
   font-family: var(--font-family);
+  font-size: var(--font-size);
   white-space: pre-wrap;
 }
 
@@ -333,7 +372,7 @@ body {
   background-color: var(--background-color) !important;
   color: var(--text-color) !important;
   font-family: var(--font-family) !important;
-  font-size: 0.8rem !important;
+  font-size: var(--font-size) !important;
   padding: 0 4px !important;
   height: 1.4rem !important;
   min-width: auto !important;
