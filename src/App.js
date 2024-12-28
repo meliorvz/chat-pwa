@@ -24,7 +24,9 @@ import {
   // eslint-disable-next-line no-unused-vars
   FormControl,
   // eslint-disable-next-line no-unused-vars
-  InputLabel
+  InputLabel,
+  createTheme,
+  ThemeProvider
 } from '@mui/material';
 import { Settings, Send, Menu } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
@@ -142,25 +144,28 @@ async function initDB() {
   });
 }
 
-const ModelButton = ({ modelKey, onClick }) => (
+const ModelButton = ({ modelKey, onClick, isAvailable }) => (
   <Button
     onClick={onClick}
+    disabled={!isAvailable}
     sx={{ 
-      backgroundColor: 'var(--text-color)',
-      color: 'var(--background-color)',
+      backgroundColor: isAvailable ? 'var(--text-color)' : 'var(--background-color-alt)',
+      color: isAvailable ? 'var(--background-color)' : 'var(--text-color)',
       fontFamily: 'var(--font-family)',
       fontSize: '1rem',
       minWidth: 'auto',
       padding: '0 4px',
       height: '1.4rem',
       lineHeight: 1,
-      border: 'none',
+      border: isAvailable ? 'none' : '1px solid var(--border-color)',
       borderRadius: 0,
       textTransform: 'none',
       margin: '2px',
+      textDecoration: isAvailable ? 'none' : 'line-through',
+      opacity: isAvailable ? 1 : 0.7,
       '&:hover': {
-        backgroundColor: 'var(--text-color)',
-        opacity: 0.9
+        backgroundColor: isAvailable ? 'var(--text-color)' : 'var(--background-color-alt)',
+        opacity: isAvailable ? 0.9 : 0.7
       }
     }}
   >
@@ -220,6 +225,47 @@ const TableBlock = ({ children }) => {
   );
 };
 
+// Create custom theme
+const theme = createTheme({
+  typography: {
+    fontFamily: 'var(--font-family)',
+    fontSize: 16,
+    button: {
+      textTransform: 'none',
+    }
+  },
+  components: {
+    MuiTypography: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'var(--font-family)',
+        }
+      }
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'var(--font-family)',
+        }
+      }
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          fontFamily: 'var(--font-family)',
+        }
+      }
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'var(--font-family)',
+        }
+      }
+    }
+  }
+});
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -252,10 +298,120 @@ function App() {
       const keys = await db.get(STORE_NAME, 'api-keys');
       if (keys) {
         setApiKeys(keys);
+        
+        // Only show welcome message if messages array is empty
+        if (messages.length === 0) {
+          // Count how many API keys are set
+          const setKeys = Object.values(keys).filter(key => key.length > 0);
+          
+          // Generate welcome message based on API key status
+          if (setKeys.length === 0) {
+            // SCENARIO A: First time user, no API keys
+            setMessages([{
+              role: 'assistant',
+              content: `# Welcome to ChatDIY! 🚀
+
+ChatDIY enables you to interact with various AI models through their APIs in a cost-efficient, pay-per-use manner. Unlike subscription-based services, you only pay for what you use.
+
+## How to Get Started
+
+1. You'll need to obtain API keys from the providers of the models you want to use:
+
+- OpenAI (GPT-4, etc.): [Get API key](https://platform.openai.com/api-keys)
+- Anthropic (Claude): [Get API key](https://console.anthropic.com/account/keys)
+- xAI (Grok): [Get API key](https://x.ai)
+- Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
+- DeepSeek: [Get API key](https://platform.deepseek.com/api)
+
+2. Click the [api keys] button in the top right to add your API keys
+3. Select a model using the [change model] button
+4. Start chatting!
+
+## Tips
+- Switch models anytime using the [change model] button or type /<model-name>
+- Use Shift+Enter for multi-line messages
+- Code blocks and tables can be copied using the [copy] button`,
+              model: {
+                label: 'SYSTEM',
+                id: 'system'
+              }
+            }]);
+          } else if (setKeys.length < Object.keys(keys).length) {
+            // SCENARIO B: Returning user, some API keys set
+            const availableModels = Object.entries(MODELS)
+              .filter(([_, model]) => keys[model.backend]?.length > 0)
+              .map(([key, model]) => `- ${model.label} (\`${key}\`)`);
+            
+            const unavailableModels = Object.entries(MODELS)
+              .filter(([_, model]) => !keys[model.backend]?.length)
+              .map(([_, model]) => model.backend)
+              .filter((value, index, self) => self.indexOf(value) === index);
+
+            setMessages([{
+              role: 'assistant',
+              content: `# Welcome Back! 🎉
+
+## Available Models
+${availableModels.join('\n')}
+
+${unavailableModels.length > 0 ? `\n## Not Yet Set Up
+Add API keys for ${unavailableModels.join(', ')} to access more models.
+Click [api keys] to add them.` : ''}
+
+Current model: ${MODELS[currentModel].label}`,
+              model: {
+                label: 'SYSTEM',
+                id: 'system'
+              }
+            }]);
+          } else {
+            // SCENARIO C: All API keys set
+            setMessages([{
+              role: 'assistant',
+              content: `# Welcome Back! 🎉
+Currently using ${MODELS[currentModel].label}. Use [change model] to switch models.`,
+              model: {
+                label: 'SYSTEM',
+                id: 'system'
+              }
+            }]);
+          }
+        }
+      } else if (messages.length === 0) {
+        // First time user, show Scenario A message
+        setMessages([{
+          role: 'assistant',
+          content: `# Welcome to ChatDIY! 🚀
+
+ChatDIY enables you to interact with various AI models through their APIs in a cost-efficient, pay-per-use manner. Unlike subscription-based services, you only pay for what you use.
+
+## How to Get Started
+
+1. You'll need to obtain API keys from the providers of the models you want to use:
+
+- OpenAI (GPT-4, etc.): [Get API key](https://platform.openai.com/api-keys)
+- Anthropic (Claude): [Get API key](https://console.anthropic.com/account/keys)
+- xAI (Grok): [Get API key](https://x.ai)
+- Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
+- DeepSeek: [Get API key](https://platform.deepseek.com/api)
+
+2. Click the [api keys] button in the top right to add your API keys
+3. Select a model using the [change model] button
+4. Start chatting!
+
+## Tips
+- Switch models anytime using the [change model] button or type /<model-name>
+- Use Shift+Enter for multi-line messages
+- Code blocks and tables can be copied using the [copy] button`,
+          model: {
+            label: 'SYSTEM',
+            id: 'system'
+          }
+        }]);
       }
     };
     loadApiKeys();
-  }, []);
+  }, []); // Remove currentModel dependency
 
   const saveApiKeys = async (newKeys) => {
     const db = await initDB();
@@ -264,21 +420,21 @@ function App() {
   };
 
   const handleModelSwitch = (modelKey) => {
-    // Add user message
-    setMessages(prev => [...prev, {
-      role: 'user',
-      content: modelKey
-    }]);
-
-    // Add system response
-    setMessages(prev => [...prev, {
-      role: 'assistant',
-      content: `Switched to ${MODELS[modelKey].label}`,
-      model: {
-        label: 'SYSTEM',
-        id: 'system'
+    // Add model switch messages to existing history
+    setMessages(prev => [...prev, 
+      {
+        role: 'user',
+        content: modelKey
+      },
+      {
+        role: 'assistant',
+        content: `Switched to ${MODELS[modelKey].label}`,
+        model: {
+          label: 'SYSTEM',
+          id: 'system'
+        }
       }
-    }]);
+    ]);
 
     setCurrentModel(modelKey);
   };
@@ -303,6 +459,7 @@ function App() {
                 key={model.key}
                 modelKey={model.key}
                 onClick={() => handleModelSwitch(model.key)}
+                isAvailable={apiKeys[model.backend]?.length > 0}
               />
             ))}
           </Box>
@@ -315,9 +472,17 @@ function App() {
       role: 'assistant',
       content: (
         <Box>
-          <Typography sx={{ mb: 2 }}>Available models:</Typography>
+          <Typography sx={{ 
+            mb: 2,
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--font-size)'
+          }}>Available models:</Typography>
           <ModelList />
-          <Typography sx={{ mt: 2 }}>Click a model or type /{`<model-name>`} to switch</Typography>
+          <Typography sx={{ 
+            mt: 2,
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--font-size)'
+          }}>Click a model or type /{`<model-name>`} to switch</Typography>
         </Box>
       ),
       model: {
@@ -353,7 +518,11 @@ function App() {
       
       // Format messages for API calls - convert React components to strings
       const formattedMessages = messages
-        .filter(msg => msg.role !== 'assistant' || typeof msg.content === 'string')
+        .filter(msg => 
+          // Exclude system messages and React component messages
+          msg.role !== 'assistant' || 
+          (typeof msg.content === 'string' && msg.model?.id !== 'system')
+        )
         .map(msg => ({
           role: msg.role,
           content: typeof msg.content === 'string' ? msg.content : ''
@@ -434,13 +603,7 @@ function App() {
             },
             body: JSON.stringify({
               model: model.modelId,
-              messages: [
-                { 
-                  role: "system", 
-                  content: "You are Grok, a chatbot inspired by the Hitchhiker's Guide to the Galaxy." 
-                },
-                ...formattedMessages
-              ],
+              messages: formattedMessages,
               temperature: model.parameters.temperature,
               max_tokens: model.parameters.max_tokens,
               stream: false
@@ -465,6 +628,27 @@ function App() {
         }
       } else if (model.backend === 'perplexity') {
         try {
+          // Format messages to ensure proper alternation
+          const formattedPerplexityMessages = [];
+          let lastRole = null;
+          
+          for (const msg of formattedMessages) {
+            // Skip consecutive messages with the same role
+            if (msg.role === lastRole) continue;
+            
+            formattedPerplexityMessages.push({
+              role: msg.role === 'assistant' ? 'assistant' : 'user',
+              content: msg.content
+            });
+            
+            lastRole = msg.role;
+          }
+          
+          // If the last message was not from the user, remove it
+          if (formattedPerplexityMessages[formattedPerplexityMessages.length - 1]?.role === 'assistant') {
+            formattedPerplexityMessages.pop();
+          }
+
           const apiResponse = await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
             headers: {
@@ -473,10 +657,7 @@ function App() {
             },
             body: JSON.stringify({
               model: model.modelId,
-              messages: formattedMessages.map(msg => ({
-                role: msg.role === 'assistant' ? 'assistant' : 'user',
-                content: msg.content
-              })),
+              messages: formattedPerplexityMessages,
               temperature: model.parameters.temperature,
               max_tokens: model.parameters.max_tokens
             })
@@ -539,255 +720,267 @@ function App() {
   };
 
   return (
-    <Box sx={{ 
-      height: '100vh', 
-      display: 'flex', 
-      flexDirection: 'column', 
-      backgroundColor: 'var(--background-color)',
-      color: 'var(--text-color)',
-      fontFamily: 'var(--font-family)'
-    }}>
-      <AppBar position="static" sx={{ 
-        backgroundColor: 'var(--background-color)', 
-        borderBottom: 'var(--border-thickness) solid var(--border-color)',
-        boxShadow: 'none'
-      }}>
-        <Toolbar variant="dense" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Button
-            onClick={handleModelButtonClick}
-            sx={{ 
-              backgroundColor: 'var(--text-color)',
-              color: 'var(--background-color)',
-              fontFamily: 'var(--font-family)',
-              fontSize: '1rem',
-              minWidth: 'auto',
-              padding: '0 4px',
-              height: '1.4rem',
-              lineHeight: 1,
-              border: 'none',
-              borderRadius: 0,
-              textTransform: 'lowercase',
-              '&:hover': {
-                backgroundColor: 'var(--text-color)',
-                opacity: 0.9
-              }
-            }}
-          >
-            [change model]
-          </Button>
-          <Typography variant="h6" sx={{ 
-            fontFamily: 'var(--font-family)',
-            color: 'var(--text-color)',
-            fontSize: '1rem',
-            letterSpacing: '0.02em',
-            flexGrow: 0
-          }}>
-            $ chat_terminal
-          </Typography>
-          <Button
-            onClick={() => setSettingsOpen(true)}
-            sx={{ 
-              backgroundColor: 'var(--text-color)',
-              color: 'var(--background-color)',
-              fontFamily: 'var(--font-family)',
-              fontSize: '1rem',
-              minWidth: 'auto',
-              padding: '0 4px',
-              height: '1.4rem',
-              lineHeight: 1,
-              border: 'none',
-              borderRadius: 0,
-              textTransform: 'lowercase',
-              '&:hover': {
-                backgroundColor: 'var(--text-color)',
-                opacity: 0.9
-              }
-            }}
-          >
-            [api keys]
-          </Button>
-        </Toolbar>
-      </AppBar>
-
+    <ThemeProvider theme={theme}>
       <Box sx={{ 
-        flex: 1, 
-        overflowY: 'auto', 
-        p: 2, 
+        height: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column', 
         backgroundColor: 'var(--background-color)',
+        color: 'var(--text-color)',
         fontFamily: 'var(--font-family)'
-      }} className="terminal-output">
-        {messages.map((message, index) => (
-          <Box
-            key={index}
-            className="terminal-line"
-          >
-            {message.role === 'user' ? (
-              <Typography component="div" sx={{ 
+      }}>
+        <AppBar position="static" sx={{ 
+          backgroundColor: 'var(--background-color)', 
+          borderBottom: 'var(--border-thickness) solid var(--border-color)',
+          boxShadow: 'none'
+        }}>
+          <Toolbar variant="dense" sx={{ 
+            display: 'flex', 
+            justifyContent: 'center',
+            position: 'relative'
+          }}>
+            <Button
+              onClick={handleModelButtonClick}
+              sx={{ 
+                position: 'absolute',
+                left: 0,
+                backgroundColor: 'var(--text-color)',
+                color: 'var(--background-color)',
                 fontFamily: 'var(--font-family)',
-                mb: 1
-              }}>
-                You: {message.content}
-              </Typography>
-            ) : (
-              <Box className="message">
-                <Typography 
-                  component="div" 
-                  sx={{ 
-                    fontFamily: 'var(--font-family)',
-                    fontSize: '1rem',
-                    mb: 1,
-                    opacity: 0.7,
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  {message.model?.label || MODELS[currentModel].label}
+                fontSize: '1rem',
+                minWidth: 'auto',
+                padding: '0 4px',
+                height: '1.4rem',
+                lineHeight: 1,
+                border: 'none',
+                borderRadius: 0,
+                textTransform: 'lowercase',
+                '&:hover': {
+                  backgroundColor: 'var(--text-color)',
+                  opacity: 0.9
+                }
+              }}
+            >
+              [change model]
+            </Button>
+            <Typography variant="h6" sx={{ 
+              fontFamily: 'var(--font-family)',
+              color: 'var(--text-color)',
+              fontSize: '1rem',
+              letterSpacing: '0.02em',
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)'
+            }}>
+              $ chat_terminal
+            </Typography>
+            <Button
+              onClick={() => setSettingsOpen(true)}
+              sx={{ 
+                position: 'absolute',
+                right: 0,
+                backgroundColor: 'var(--text-color)',
+                color: 'var(--background-color)',
+                fontFamily: 'var(--font-family)',
+                fontSize: '1rem',
+                minWidth: 'auto',
+                padding: '0 4px',
+                height: '1.4rem',
+                lineHeight: 1,
+                border: 'none',
+                borderRadius: 0,
+                textTransform: 'lowercase',
+                '&:hover': {
+                  backgroundColor: 'var(--text-color)',
+                  opacity: 0.9
+                }
+              }}
+            >
+              [api keys]
+            </Button>
+          </Toolbar>
+        </AppBar>
+
+        <Box sx={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          p: 2, 
+          backgroundColor: 'var(--background-color)',
+          fontFamily: 'var(--font-family)'
+        }} className="terminal-output">
+          {messages.map((message, index) => (
+            <Box
+              key={index}
+              className="terminal-line"
+            >
+              {message.role === 'user' ? (
+                <Typography component="div" sx={{ 
+                  fontFamily: 'var(--font-family)',
+                  mb: 1
+                }}>
+                  You: {message.content}
                 </Typography>
-                {typeof message.content === 'string' ? (
-                  <ReactMarkdown
-                    components={{
-                      pre: CodeBlock,
-                      table: TableBlock
+              ) : (
+                <Box className="message">
+                  <Typography 
+                    component="div" 
+                    sx={{ 
+                      fontFamily: 'var(--font-family)',
+                      fontSize: '1rem',
+                      mb: 1,
+                      opacity: 0.7,
+                      textTransform: 'uppercase'
                     }}
                   >
-                    {message.content}
-                  </ReactMarkdown>
-                ) : (
-                  message.content
-                )}
-              </Box>
-            )}
-          </Box>
-        ))}
-        <div ref={messagesEndRef} />
-      </Box>
+                    {message.model?.label || MODELS[currentModel].label}
+                  </Typography>
+                  {typeof message.content === 'string' ? (
+                    <ReactMarkdown
+                      components={{
+                        pre: CodeBlock,
+                        table: TableBlock
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  ) : (
+                    message.content
+                  )}
+                </Box>
+              )}
+            </Box>
+          ))}
+          <div ref={messagesEndRef} />
+        </Box>
 
-      <Box sx={{ 
-        p: 2, 
-        borderTop: 'var(--border-thickness) solid var(--border-color)', 
-        backgroundColor: 'var(--background-color)'
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography sx={{ 
-            fontFamily: 'var(--font-family)',
-            color: 'var(--text-color)',
-            opacity: 0.7,
-            userSelect: 'none',
-            mr: 1
-          }}>
-            $
-          </Typography>
-          <Box sx={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-            <TextField
-              fullWidth
-              variant="standard"
-              placeholder={isFocused ? "" : "Type your command..."}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              disabled={isLoading}
-              multiline
-              maxRows={8}
-              className="terminal-input"
-              InputProps={{
-                disableUnderline: true,
-                sx: {
-                  fontFamily: 'var(--font-family)',
-                  fontSize: '1rem',
-                  minHeight: '24px',
-                  lineHeight: '24px',
-                  color: 'var(--text-color)'
-                }
-              }}
-            />
-            {!isLoading && isFocused && (
-              <Box 
-                component="span"
-                className="input-cursor"
-                sx={{ 
-                  position: 'absolute',
-                  left: `${input.length}ch`,
-                  height: '1.2em',
-                  top: '50%',
-                  transform: 'translateY(-50%)'
+        <Box sx={{ 
+          p: 2, 
+          borderTop: 'var(--border-thickness) solid var(--border-color)', 
+          backgroundColor: 'var(--background-color)'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography sx={{ 
+              fontFamily: 'var(--font-family)',
+              color: 'var(--text-color)',
+              opacity: 0.7,
+              userSelect: 'none',
+              mr: 1
+            }}>
+              $
+            </Typography>
+            <Box sx={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+              <TextField
+                fullWidth
+                variant="standard"
+                placeholder={isFocused ? "" : "Type your command..."}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                disabled={isLoading}
+                multiline
+                maxRows={8}
+                className="terminal-input"
+                InputProps={{
+                  disableUnderline: true,
+                  sx: {
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '1rem',
+                    minHeight: '24px',
+                    lineHeight: '24px',
+                    color: 'var(--text-color)'
+                  }
                 }}
               />
-            )}
+              {!isLoading && isFocused && (
+                <Box 
+                  component="span"
+                  className="input-cursor"
+                  sx={{ 
+                    position: 'absolute',
+                    left: `${input.length}ch`,
+                    height: '1.2em',
+                    top: '50%',
+                    transform: 'translateY(-50%)'
+                  }}
+                />
+              )}
+            </Box>
           </Box>
         </Box>
-      </Box>
 
-      <Dialog 
-        open={settingsOpen} 
-        onClose={() => setSettingsOpen(false)}
-        PaperProps={{
-          sx: {
-            backgroundColor: 'var(--background-color)',
-            color: 'var(--text-color)',
-            border: 'var(--border-thickness) solid var(--border-color)',
-            fontFamily: 'var(--font-family)'
-          }
-        }}
-      >
-        <DialogTitle sx={{ fontFamily: 'var(--font-family)' }}>API Settings</DialogTitle>
-        <DialogContent>
-          {Object.entries(apiKeys).map(([key, value]) => (
-            <TextField
-              key={key}
-              fullWidth
-              margin="normal"
-              label={`${key.toUpperCase()} API Key`}
-              type="password"
-              value={value}
-              onChange={(e) => setApiKeys(prev => ({ ...prev, [key]: e.target.value }))}
-              className="terminal-input"
-              variant="standard"
-              InputProps={{
-                sx: { fontFamily: 'var(--font-family)' }
-              }}
-              InputLabelProps={{
-                sx: { fontFamily: 'var(--font-family)' }
-              }}
-            />
-          ))}
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => setSettingsOpen(false)}
-            sx={{ 
+        <Dialog 
+          open={settingsOpen} 
+          onClose={() => setSettingsOpen(false)}
+          PaperProps={{
+            sx: {
+              backgroundColor: 'var(--background-color)',
               color: 'var(--text-color)',
-              fontFamily: 'var(--font-family)',
-              '&:hover': {
-                backgroundColor: 'var(--background-color-alt)'
-              }
-            }}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={() => {
-              saveApiKeys(apiKeys);
-              setSettingsOpen(false);
-            }}
-            sx={{ 
-              color: 'var(--text-color)',
-              fontFamily: 'var(--font-family)',
-              '&:hover': {
-                backgroundColor: 'var(--background-color-alt)'
-              }
-            }}
-          >
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+              border: 'var(--border-thickness) solid var(--border-color)',
+              fontFamily: 'var(--font-family)'
+            }
+          }}
+        >
+          <DialogTitle sx={{ fontFamily: 'var(--font-family)' }}>API Settings</DialogTitle>
+          <DialogContent>
+            {Object.entries(apiKeys).map(([key, value]) => (
+              <TextField
+                key={key}
+                fullWidth
+                margin="normal"
+                label={`${key.toUpperCase()} API Key`}
+                type="password"
+                value={value}
+                onChange={(e) => setApiKeys(prev => ({ ...prev, [key]: e.target.value }))}
+                className="terminal-input"
+                variant="standard"
+                InputProps={{
+                  sx: { fontFamily: 'var(--font-family)' }
+                }}
+                InputLabelProps={{
+                  sx: { fontFamily: 'var(--font-family)' }
+                }}
+              />
+            ))}
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={() => setSettingsOpen(false)}
+              sx={{ 
+                color: 'var(--text-color)',
+                fontFamily: 'var(--font-family)',
+                '&:hover': {
+                  backgroundColor: 'var(--background-color-alt)'
+                }
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                saveApiKeys(apiKeys);
+                setSettingsOpen(false);
+              }}
+              sx={{ 
+                color: 'var(--text-color)',
+                fontFamily: 'var(--font-family)',
+                '&:hover': {
+                  backgroundColor: 'var(--background-color-alt)'
+                }
+              }}
+            >
+              Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    </ThemeProvider>
   );
 }
 
