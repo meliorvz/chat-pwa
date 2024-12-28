@@ -315,22 +315,20 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
 
 ## How to Get Started
 
-1. You'll need to obtain API keys from the providers of the models you want to use and purchase credits:
-
-- OpenAI (GPT-4, etc.): [Get API key](https://platform.openai.com/api-keys)
-- Anthropic (Claude): [Get API key](https://console.anthropic.com/account/keys)
-- xAI (Grok): [Get API key](https://console.x.ai/)
-- Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
-- DeepSeek: [Get API key](https://platform.deepseek.com/api)
-
+1. You'll need to obtain API keys from the providers of the models you want to use:
+    * OpenAI (GPT-4, etc.): [Get API key](https://platform.openai.com/api-keys)
+    * Anthropic (Claude): [Get API key](https://console.anthropic.com/account/keys)
+    * xAI (Grok): [Get API key](https://console.x.ai/)
+    * Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
+    * DeepSeek: [Get API key](https://platform.deepseek.com/api)
 2. Click the [api] button in the top right to add your API keys
 3. Select a model using the [model] button
 4. Start chatting!
 
 ## Tips
-- Switch models anytime using the [model] button or type /<model-name>
-- Use Shift+Enter for multi-line messages
-- Code blocks and tables can be copied using the [copy] button`,
+* Switch models anytime using the [model] button or type /<model-name>
+* Use Shift+Enter for multi-line messages
+* Code blocks and tables can be copied using the [copy] button`,
               model: {
                 label: 'SYSTEM',
                 id: 'system'
@@ -388,21 +386,19 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
 ## How to Get Started
 
 1. You'll need to obtain API keys from the providers of the models you want to use:
-
-- OpenAI (GPT-4, etc.): [Get API key](https://platform.openai.com/api-keys)
-- Anthropic (Claude): [Get API key](https://console.anthropic.com/account/keys)
-- xAI (Grok): [Get API key](https://x.ai)
-- Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
-- DeepSeek: [Get API key](https://platform.deepseek.com/api)
-
+    * OpenAI (GPT-4, etc.): [Get API key](https://platform.openai.com/api-keys)
+    * Anthropic (Claude): [Get API key](https://console.anthropic.com/account/keys)
+    * xAI (Grok): [Get API key](https://x.ai)
+    * Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
+    * DeepSeek: [Get API key](https://platform.deepseek.com/api)
 2. Click the [api] button in the top right to add your API keys
 3. Select a model using the [model] button
 4. Start chatting!
 
 ## Tips
-- Switch models anytime using the [model] button or type /<model-name>
-- Use Shift+Enter for multi-line messages
-- Code blocks and tables can be copied using the [copy] button`,
+* Switch models anytime using the [model] button or type /<model-name>
+* Use Shift+Enter for multi-line messages
+* Code blocks and tables can be copied using the [copy] button`,
           model: {
             label: 'SYSTEM',
             id: 'system'

@@ -224,13 +224,73 @@ textarea {
 }
 
 /* List styling */
-.message ul li,
-.message ol li {
-  position: relative;
-  padding-left: 4ch;
-  line-height: 1.2;
+.message ul,
+.message ol {
   margin: 0;
-  white-space: normal;
+  padding: 0;
+  list-style: none;
+}
+
+.message ul li {
+  padding-left: 2ch;
+  position: relative;
+  line-height: 1;
+}
+
+.message ul li::before {
+  content: "■";
+  position: absolute;
+  left: 0;
+}
+
+.message ol {
+  counter-reset: item;
+}
+
+.message ol li {
+  counter-increment: item;
+  line-height: 1;
+  position: relative;
+  padding-left: 3ch;
+}
+
+.message ol li::before {
+  content: counter(item) ".";
+  position: absolute;
+  left: 0;
+  width: 2ch;
+  text-align: right;
+}
+
+/* Nested lists */
+.message ol ol,
+.message ul ul,
+.message ol ul {
+  margin: 0;
+  padding: 0;
+}
+
+/* Reset counter and bullet styling for nested unordered lists */
+.message ol ul {
+  counter-reset: none;
+}
+
+.message ol ul li {
+  counter-increment: none;
+  padding-left: 2ch;
+}
+
+.message ol ul li::before {
+  content: "■";
+  left: 0;
+  width: auto;
+  text-align: left;
+}
+
+/* Regular nested list spacing */
+.message ol ol li,
+.message ul ul li {
+  padding-left: 2ch;
 }
 
 /* Code block styling */
