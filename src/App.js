@@ -315,20 +315,20 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
 
 ## How to Get Started
 
-1. You'll need to obtain API keys from the providers of the models you want to use:
+1. You'll need to obtain API keys from the providers of the models you want to use and purchase credits:
 
 - OpenAI (GPT-4, etc.): [Get API key](https://platform.openai.com/api-keys)
 - Anthropic (Claude): [Get API key](https://console.anthropic.com/account/keys)
-- xAI (Grok): [Get API key](https://x.ai)
+- xAI (Grok): [Get API key](https://console.x.ai/)
 - Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
 - DeepSeek: [Get API key](https://platform.deepseek.com/api)
 
-2. Click the [api keys] button in the top right to add your API keys
-3. Select a model using the [change model] button
+2. Click the [api] button in the top right to add your API keys
+3. Select a model using the [model] button
 4. Start chatting!
 
 ## Tips
-- Switch models anytime using the [change model] button or type /<model-name>
+- Switch models anytime using the [model] button or type /<model-name>
 - Use Shift+Enter for multi-line messages
 - Code blocks and tables can be copied using the [copy] button`,
               model: {
@@ -356,7 +356,7 @@ ${availableModels.join('\n')}
 
 ${unavailableModels.length > 0 ? `\n## Not Yet Set Up
 Add API keys for ${unavailableModels.join(', ')} to access more models.
-Click [api keys] to add them.` : ''}
+Click [api] to add them.` : ''}
 
 Current model: ${MODELS[currentModel].label}`,
               model: {
@@ -369,7 +369,7 @@ Current model: ${MODELS[currentModel].label}`,
             setMessages([{
               role: 'assistant',
               content: `# Welcome Back! 🎉
-Currently using ${MODELS[currentModel].label}. Use [change model] to switch models.`,
+Currently using ${MODELS[currentModel].label}. Use [model] to switch models.`,
               model: {
                 label: 'SYSTEM',
                 id: 'system'
@@ -395,12 +395,12 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
 - Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
 - DeepSeek: [Get API key](https://platform.deepseek.com/api)
 
-2. Click the [api keys] button in the top right to add your API keys
-3. Select a model using the [change model] button
+2. Click the [api] button in the top right to add your API keys
+3. Select a model using the [model] button
 4. Start chatting!
 
 ## Tips
-- Switch models anytime using the [change model] button or type /<model-name>
+- Switch models anytime using the [model] button or type /<model-name>
 - Use Shift+Enter for multi-line messages
 - Code blocks and tables can be copied using the [copy] button`,
           model: {
@@ -747,9 +747,12 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
                 backgroundColor: 'var(--text-color)',
                 color: 'var(--background-color)',
                 fontFamily: 'var(--font-family)',
-                fontSize: '1rem',
+                fontSize: {
+                  xs: '16px',
+                  sm: '1rem'
+                },
                 minWidth: 'auto',
-                padding: '0 4px',
+                padding: '0 2px',
                 height: '1.4rem',
                 lineHeight: 1,
                 border: 'none',
@@ -761,12 +764,15 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
                 }
               }}
             >
-              [change model]
+              [model]
             </Button>
             <Typography variant="h6" sx={{ 
               fontFamily: 'var(--font-family)',
               color: 'var(--text-color)',
-              fontSize: '1rem',
+              fontSize: {
+                xs: '16px',
+                sm: '1rem'
+              },
               letterSpacing: '0.02em',
               position: 'absolute',
               left: '50%',
@@ -782,9 +788,12 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
                 backgroundColor: 'var(--text-color)',
                 color: 'var(--background-color)',
                 fontFamily: 'var(--font-family)',
-                fontSize: '1rem',
+                fontSize: {
+                  xs: '16px',
+                  sm: '1rem'
+                },
                 minWidth: 'auto',
-                padding: '0 4px',
+                padding: '0 2px',
                 height: '1.4rem',
                 lineHeight: 1,
                 border: 'none',
@@ -796,7 +805,7 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
                 }
               }}
             >
-              [api keys]
+              [api]
             </Button>
           </Toolbar>
         </AppBar>
@@ -804,7 +813,8 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
         <Box sx={{ 
           flex: 1, 
           overflowY: 'auto', 
-          p: 2, 
+          p: 2,
+          pb: { xs: '120px', sm: '100px' },
           backgroundColor: 'var(--background-color)',
           fontFamily: 'var(--font-family)'
         }} className="terminal-output">
@@ -816,6 +826,10 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
               {message.role === 'user' ? (
                 <Typography component="div" sx={{ 
                   fontFamily: 'var(--font-family)',
+                  fontSize: {
+                    xs: '16px',
+                    sm: '1rem'
+                  },
                   mb: 1
                 }}>
                   You: {message.content}
@@ -854,21 +868,34 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
         </Box>
 
         <Box sx={{ 
-          p: 2, 
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          p: 2,
           borderTop: 'var(--border-thickness) solid var(--border-color)', 
-          backgroundColor: 'var(--background-color)'
+          backgroundColor: 'var(--background-color)',
+          zIndex: 1000,
+          '@media (max-width: 600px)': {
+            p: 1.5
+          }
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
             <Typography sx={{ 
               fontFamily: 'var(--font-family)',
               color: 'var(--text-color)',
               opacity: 0.7,
               userSelect: 'none',
-              mr: 1
+              fontSize: {
+                xs: '16px',
+                sm: '1rem'
+              },
+              lineHeight: '24px',
+              mt: '0px'
             }}>
               $
             </Typography>
-            <Box sx={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+            <Box sx={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'flex-start', overflow: 'hidden' }}>
               <TextField
                 fullWidth
                 variant="standard"
@@ -891,13 +918,56 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
                   disableUnderline: true,
                   sx: {
                     fontFamily: 'var(--font-family)',
-                    fontSize: '1rem',
+                    fontSize: {
+                      xs: '16px',
+                      sm: '1rem'
+                    },
                     minHeight: '24px',
                     lineHeight: '24px',
-                    color: 'var(--text-color)'
+                    color: 'var(--text-color)',
+                    pr: '32px',
+                    '& textarea': {
+                      paddingRight: '32px !important'
+                    }
                   }
                 }}
+                inputProps={{
+                  autoComplete: 'off',
+                  autoCorrect: 'off',
+                  autoCapitalize: 'off',
+                  spellCheck: 'false'
+                }}
               />
+              <Button
+                onClick={handleSend}
+                disabled={isLoading}
+                sx={{ 
+                  position: 'absolute',
+                  right: 0,
+                  top: '0px',
+                  backgroundColor: 'var(--text-color)',
+                  color: 'var(--background-color)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: {
+                    xs: '16px',
+                    sm: '1rem'
+                  },
+                  minWidth: 'auto',
+                  padding: '0 2px',
+                  height: '24px',
+                  lineHeight: '24px',
+                  border: 'none',
+                  borderRadius: 0,
+                  textTransform: 'lowercase',
+                  opacity: isLoading ? 0.5 : 1,
+                  '&:hover': {
+                    backgroundColor: 'var(--text-color)',
+                    opacity: 0.9
+                  }
+                }}
+              >
+                [&gt;]
+              </Button>
               {!isLoading && isFocused && (
                 <Box 
                   component="span"
@@ -905,9 +975,10 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
                   sx={{ 
                     position: 'absolute',
                     left: `${input.length}ch`,
-                    height: '1.2em',
-                    top: '50%',
-                    transform: 'translateY(-50%)'
+                    height: '24px',
+                    width: '0.6em',
+                    top: '0px',
+                    transform: 'none'
                   }}
                 />
               )}
@@ -941,10 +1012,26 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
                 className="terminal-input"
                 variant="standard"
                 InputProps={{
-                  sx: { fontFamily: 'var(--font-family)' }
+                  disableUnderline: true,
+                  sx: { 
+                    fontFamily: 'var(--font-family)',
+                    borderBottom: 'var(--border-thickness) solid var(--text-color)',
+                    '&:hover': {
+                      borderBottom: 'var(--border-thickness) solid var(--text-color)'
+                    },
+                    '&.Mui-focused': {
+                      borderBottom: 'var(--border-thickness) solid var(--text-color)'
+                    }
+                  }
                 }}
                 InputLabelProps={{
-                  sx: { fontFamily: 'var(--font-family)' }
+                  sx: { 
+                    fontFamily: 'var(--font-family)',
+                    color: 'var(--text-color)',
+                    '&.Mui-focused': {
+                      color: 'var(--text-color)'
+                    }
+                  }
                 }}
               />
             ))}

@@ -64,6 +64,9 @@ body {
   line-height: 24px !important;
   width: 100% !important;
   overflow-x: hidden !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
 }
 
 .terminal-input .MuiInputBase-root {
@@ -73,6 +76,10 @@ body {
   min-height: 24px !important;
   width: 100% !important;
   overflow-x: hidden !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  position: relative !important;
 }
 
 .terminal-input .MuiInputBase-input {
@@ -88,7 +95,53 @@ body {
   scrollbar-color: var(--scrollbar-color) transparent !important;
   white-space: pre-wrap !important;
   word-break: break-word !important;
-  width: 100% !important;
+  width: calc(100% - 32px) !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Style for the hidden measurement textarea */
+.terminal-input .MuiInputBase-input[aria-hidden="true"] {
+  position: absolute !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  width: calc(100% - 32px) !important;
+  top: 0 !important;
+  left: 0 !important;
+  pointer-events: none !important;
+  transform: translateZ(0) !important;
+}
+
+/* Remove iOS form styling */
+input[type="text"],
+textarea {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+}
+
+/* Prevent iOS zoom on focus */
+@media screen and (max-width: 600px) {
+  input[type="text"],
+  textarea {
+    font-size: 16px !important;
+  }
+  
+  .terminal-input,
+  .terminal-input .MuiInputBase-root,
+  .terminal-input .MuiInputBase-input {
+    font-size: 16px !important;
+  }
 }
 
 .terminal-input .MuiInputBase-input::-webkit-scrollbar {
@@ -118,114 +171,47 @@ body {
 
 .input-cursor {
   display: inline-block;
-  width: 0.6em;
-  height: 1.2em;
+  width: 0.6em !important;
+  height: 24px !important;
   background-color: var(--text-color);
   animation: blink 1s step-end infinite;
-  margin-left: 1px;
+  vertical-align: top;
+  pointer-events: none;
+  position: absolute;
+  transform: none;
 }
 
 /* Message styling */
 .message {
   border: var(--border-thickness) solid var(--border-color);
-  padding: 1rem;
-  margin: 0.5rem 0;
+  padding: 0.25rem;
+  margin: 0.25rem 0;
   font-family: var(--font-family);
   font-size: var(--font-size);
   white-space: pre-wrap;
+  line-height: 1.2;
 }
 
-/* Markdown content styling */
-.message ul,
-.message ol {
-  margin: 0;
-  padding-left: 0;
-  list-style-position: outside;
-  list-style-type: none;
-}
-
-.message ul li,
-.message ol li {
-  position: relative;
-  padding-left: 4ch;
-  line-height: var(--line-height);
-}
-
-/* Unordered lists */
-.message ul li::before {
-  content: "■";
-  position: absolute;
-  left: 0;
-  width: 4ch;
-  text-align: center;
-  font-size: 0.8em;
-  line-height: 2;
-}
-
-/* Ordered lists */
-.message ol {
-  counter-reset: item;
-}
-
-.message ol > li {
-  counter-increment: item;
-}
-
-.message ol > li::before {
-  content: counter(item) ".";
-  position: absolute;
-  left: 0;
-  width: 4ch;
-  text-align: left;
-}
-
-/* Nested lists */
-.message ul ul,
-.message ol ol,
-.message ul ol,
-.message ol ul {
-  margin: 0;
-  padding-left: 0;
-}
-
-.message ul ul li,
-.message ol ol li,
-.message ul ol li,
-.message ol ul li {
-  padding-left: 8ch;
-}
-
-/* Nested ordered lists */
-.message ol ol {
-  counter-reset: subitem;
-}
-
-.message ol ol > li {
-  counter-increment: subitem;
-}
-
-.message ol ol > li::before {
-  content: counter(item) "." counter(subitem) ".";
-  width: 8ch;
-}
-
-/* Spacing between list items */
-.message li {
-  margin: 0;
-}
-
-/* Paragraph spacing in list items */
-.message li p {
-  margin: 0;
-}
-
-/* Ensure proper spacing for text content */
-.message li > :first-child {
+/* Remove gaps between markdown elements */
+.message > *:first-child {
   margin-top: 0;
 }
 
-.message li > :last-child {
+.message > *:last-child {
   margin-bottom: 0;
+}
+
+.message * + * {
+  margin-top: 0; /* Remove space between consecutive elements */
+}
+
+/* Markdown content styling */
+.message p,
+.message ul,
+.message ol,
+.message pre,
+.message blockquote {
+  margin: 0; /* Remove all margins */
 }
 
 .message h1,
@@ -234,21 +220,77 @@ body {
 .message h4,
 .message h5,
 .message h6 {
-  margin: 1.5rem 0 1rem 0;
-  line-height: var(--line-height);
+  margin: 0.25rem 0 0 0; /* Only keep small top margin for headers */
 }
 
-.message p {
-  margin: 1rem 0;
-  line-height: var(--line-height);
+/* List styling */
+.message ul li,
+.message ol li {
+  position: relative;
+  padding-left: 4ch;
+  line-height: 1.2;
+  margin: 0;
+  white-space: normal;
 }
 
-.message pre,
-.message code {
+/* Code block styling */
+.message pre {
+  padding: 0.25rem;
   background-color: var(--background-color-alt);
-  padding: 0.2em 0.4em;
-  border-radius: 3px;
-  font-family: var(--font-family);
+}
+
+.message code {
+  white-space: pre;
+  line-height: 1.2;
+}
+
+/* Block wrapper styling */
+.block-wrapper {
+  margin: 0.25rem 0;
+}
+
+/* Copy button styling */
+.copy-button {
+  position: absolute !important;
+  top: 0.5rem !important;
+  right: 0.5rem !important;
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
+  font-family: var(--font-family) !important;
+  font-size: var(--font-size) !important;
+  padding: 0 2px !important;
+  height: 1.4rem !important;
+  min-width: auto !important;
+  line-height: 1 !important;
+  border: var(--border-thickness) solid var(--text-color) !important;
+  border-radius: 0 !important;
+  text-transform: lowercase !important;
+  transition: all 0.2s ease !important;
+  z-index: 1 !important;
+}
+
+.copy-button:hover {
+  background-color: var(--text-color) !important;
+  color: var(--background-color) !important;
+  opacity: 0.9 !important;
+}
+
+/* Remove default outline and add custom border for API key inputs */
+.terminal-input.MuiInput-underline:before,
+.terminal-input.MuiInput-underline:after {
+  display: none !important;
+}
+
+.terminal-input.MuiInput-underline {
+  border-bottom: var(--border-thickness) solid var(--text-color) !important;
+}
+
+.terminal-input.MuiInput-underline:hover {
+  border-bottom: var(--border-thickness) solid var(--text-color) !important;
+}
+
+.terminal-input.MuiInput-underline.Mui-focused {
+  border-bottom: var(--border-thickness) solid var(--text-color) !important;
 }
 
 /* Scrollbar styling */
@@ -269,13 +311,13 @@ body {
 /* Media queries */
 @media (max-width: 768px) {
   :root {
-    font-size: 14px;
+    --font-size: 16px;
   }
 }
 
 @media (max-width: 480px) {
   :root {
-    font-size: 12px;
+    --font-size: 16px;
   }
 }
 
@@ -373,7 +415,7 @@ body {
   color: var(--text-color) !important;
   font-family: var(--font-family) !important;
   font-size: var(--font-size) !important;
-  padding: 0 4px !important;
+  padding: 0 2px !important;
   height: 1.4rem !important;
   min-width: auto !important;
   line-height: 1 !important;
@@ -388,4 +430,22 @@ body {
   background-color: var(--text-color) !important;
   color: var(--background-color) !important;
   opacity: 0.9 !important;
+}
+
+/* Remove default outline and add custom border for API key inputs */
+.terminal-input.MuiInput-underline:before,
+.terminal-input.MuiInput-underline:after {
+  display: none !important;
+}
+
+.terminal-input.MuiInput-underline {
+  border-bottom: var(--border-thickness) solid var(--text-color) !important;
+}
+
+.terminal-input.MuiInput-underline:hover {
+  border-bottom: var(--border-thickness) solid var(--text-color) !important;
+}
+
+.terminal-input.MuiInput-underline.Mui-focused {
+  border-bottom: var(--border-thickness) solid var(--text-color) !important;
 } 
