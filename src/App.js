@@ -30,6 +30,7 @@ import { Settings, Send, Menu } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import OpenAI from 'openai';
 import { openDB } from 'idb';
+import './styles/terminal.css';
 
 const DB_NAME = 'chat-diy-db';
 const STORE_NAME = 'api-keys';
@@ -141,6 +142,84 @@ async function initDB() {
   });
 }
 
+const ModelButton = ({ modelKey, onClick }) => (
+  <Button
+    onClick={onClick}
+    sx={{ 
+      backgroundColor: 'var(--text-color)',
+      color: 'var(--background-color)',
+      fontFamily: 'var(--font-family)',
+      fontSize: '1rem',
+      minWidth: 'auto',
+      padding: '0 4px',
+      height: '1.4rem',
+      lineHeight: 1,
+      border: 'none',
+      borderRadius: 0,
+      textTransform: 'none',
+      margin: '2px',
+      '&:hover': {
+        backgroundColor: 'var(--text-color)',
+        opacity: 0.9
+      }
+    }}
+  >
+    [{modelKey}]
+  </Button>
+);
+
+const CopyButton = ({ content }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Button 
+      onClick={handleCopy}
+      className="copy-button"
+    >
+      [{copied ? 'copied' : 'copy'}]
+    </Button>
+  );
+};
+
+const BlockWrapper = ({ children, content }) => {
+  return (
+    <div className="block-wrapper">
+      {React.cloneElement(children, {
+        children: (
+          <>
+            <CopyButton content={content} />
+            {children.props.children}
+          </>
+        )
+      })}
+    </div>
+  );
+};
+
+const CodeBlock = ({ children }) => {
+  const content = children.props.children;
+  return (
+    <BlockWrapper content={content}>
+      <pre>{children}</pre>
+    </BlockWrapper>
+  );
+};
+
+const TableBlock = ({ children }) => {
+  const content = children.props.children;
+  return (
+    <BlockWrapper content={content}>
+      <table>{children}</table>
+    </BlockWrapper>
+  );
+};
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -155,6 +234,7 @@ function App() {
     perplexity: '',
     deepseek: ''
   });
+  const [isFocused, setIsFocused] = useState(false);
   
   const messagesEndRef = useRef(null);
   const scrollToBottom = () => {
@@ -183,8 +263,83 @@ function App() {
     setApiKeys(newKeys);
   };
 
+  const handleModelSwitch = (modelKey) => {
+    // Add user message
+    setMessages(prev => [...prev, {
+      role: 'user',
+      content: modelKey
+    }]);
+
+    // Add system response
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `Switched to ${MODELS[modelKey].label}`,
+      model: {
+        label: 'SYSTEM',
+        id: 'system'
+      }
+    }]);
+
+    setCurrentModel(modelKey);
+  };
+
+  const handleModelButtonClick = () => {
+    // Group models by backend
+    const modelsByBackend = Object.entries(MODELS).reduce((acc, [key, model]) => {
+      if (!acc[model.backend]) {
+        acc[model.backend] = [];
+      }
+      acc[model.backend].push({ key, ...model });
+      return acc;
+    }, {});
+
+    // Create formatted model list with React components
+    const ModelList = () => (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {Object.entries(modelsByBackend).map(([backend, models]) => (
+          <Box key={backend} sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {models.map(model => (
+              <ModelButton
+                key={model.key}
+                modelKey={model.key}
+                onClick={() => handleModelSwitch(model.key)}
+              />
+            ))}
+          </Box>
+        ))}
+      </Box>
+    );
+
+    // Add system message
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: (
+        <Box>
+          <Typography sx={{ mb: 2 }}>Available models:</Typography>
+          <ModelList />
+          <Typography sx={{ mt: 2 }}>Click a model or type /{`<model-name>`} to switch</Typography>
+        </Box>
+      ),
+      model: {
+        label: 'SYSTEM',
+        id: 'system'
+      }
+    }]);
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
+    
+    // Check if input is a model switch command (now requires "/" prefix)
+    const modelCommand = input.trim();
+    if (modelCommand.startsWith('/')) {
+      const modelKey = modelCommand.slice(1); // Remove the "/" prefix
+      if (MODELS[modelKey]) {
+        handleModelSwitch(modelKey);
+        setInput('');
+        return;
+      }
+    }
     
     const model = MODELS[currentModel];
     const userMessage = { role: 'user', content: input };
@@ -196,17 +351,22 @@ function App() {
     try {
       let response;
       
+      // Format messages for API calls - convert React components to strings
+      const formattedMessages = messages
+        .filter(msg => msg.role !== 'assistant' || typeof msg.content === 'string')
+        .map(msg => ({
+          role: msg.role,
+          content: typeof msg.content === 'string' ? msg.content : ''
+        }));
+      
+      // Add the current user message
+      formattedMessages.push(userMessage);
+      
       if (model.backend === 'openai') {
         const openai = new OpenAI({ 
           apiKey: apiKeys.openai, 
           dangerouslyAllowBrowser: true 
         });
-        
-        // Format messages for OpenAI
-        const formattedMessages = [...messages, userMessage].map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }));
 
         // Map parameters according to model's parameter map
         const apiParams = {};
@@ -235,7 +395,7 @@ function App() {
               model: model.modelId,
               max_tokens: model.parameters.max_tokens,
               temperature: model.parameters.temperature,
-              messages: [...messages, userMessage].map(msg => ({
+              messages: formattedMessages.map(msg => ({
                 role: msg.role === 'assistant' ? 'assistant' : 'user',
                 content: [{ 
                   type: 'text', 
@@ -279,11 +439,7 @@ function App() {
                   role: "system", 
                   content: "You are Grok, a chatbot inspired by the Hitchhiker's Guide to the Galaxy." 
                 },
-                ...messages.map(msg => ({
-                  role: msg.role,
-                  content: msg.content
-                })),
-                userMessage
+                ...formattedMessages
               ],
               temperature: model.parameters.temperature,
               max_tokens: model.parameters.max_tokens,
@@ -309,19 +465,6 @@ function App() {
         }
       } else if (model.backend === 'perplexity') {
         try {
-          console.log('Perplexity API request config:', {
-            url: 'https://api.perplexity.ai/chat/completions',
-            headers: {
-              'Authorization': 'Bearer ' + (apiKeys.perplexity ? '[PRESENT]' : '[MISSING]'),
-              'Content-Type': 'application/json'
-            },
-            model: model.modelId,
-            messages: [...messages, userMessage].map(msg => ({
-              role: msg.role === 'assistant' ? 'assistant' : 'user',
-              content: msg.content
-            }))
-          });
-
           const apiResponse = await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
             headers: {
@@ -330,7 +473,7 @@ function App() {
             },
             body: JSON.stringify({
               model: model.modelId,
-              messages: [...messages, userMessage].map(msg => ({
+              messages: formattedMessages.map(msg => ({
                 role: msg.role === 'assistant' ? 'assistant' : 'user',
                 content: msg.content
               })),
@@ -339,24 +482,12 @@ function App() {
             })
           });
 
-          console.log('Perplexity API response status:', apiResponse.status);
-          
           if (!apiResponse.ok) {
             const errorData = await apiResponse.json().catch(() => null);
-            console.error('Perplexity API detailed error:', {
-              status: apiResponse.status,
-              statusText: apiResponse.statusText,
-              headers: Object.fromEntries([...apiResponse.headers]),
-              error: errorData
-            });
-            if (apiResponse.status === 429) {
-              throw new Error('Rate limit exceeded. Please try again later.');
-            }
             throw new Error(errorData?.error?.message || `HTTP error! status: ${apiResponse.status}`);
           }
 
           const completion = await apiResponse.json();
-          console.log('Perplexity API response:', completion);
           
           if (completion.choices && completion.choices[0] && completion.choices[0].message) {
             response = completion.choices[0].message;
@@ -373,12 +504,6 @@ function App() {
           apiKey: apiKeys.deepseek,
           dangerouslyAllowBrowser: true 
         });
-        
-        // Format messages for Deepseek - convert 'assistant' role to 'system'
-        const formattedMessages = [...messages, userMessage].map(msg => ({
-          role: msg.role === 'assistant' ? 'system' : 'user',
-          content: msg.content
-        }));
 
         const completion = await openai.chat.completions.create({
           model: model.modelId,
@@ -390,12 +515,23 @@ function App() {
         response = completion.choices[0].message;
       }
 
-      setMessages(prev => [...prev, response]);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: response.content || response,
+        model: {
+          label: model.label,
+          id: currentModel
+        }
+      }]);
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `Error: ${error.message}`
+        content: `Error: ${error.message}`,
+        model: {
+          label: model.label,
+          id: currentModel
+        }
       }]);
     } finally {
       setIsLoading(false);
@@ -403,162 +539,251 @@ function App() {
   };
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="fixed">
-        <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            onClick={() => setDrawerOpen(true)}
+    <Box sx={{ 
+      height: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      backgroundColor: 'var(--background-color)',
+      color: 'var(--text-color)',
+      fontFamily: 'var(--font-family)'
+    }}>
+      <AppBar position="static" sx={{ 
+        backgroundColor: 'var(--background-color)', 
+        borderBottom: 'var(--border-thickness) solid var(--border-color)',
+        boxShadow: 'none'
+      }}>
+        <Toolbar variant="dense" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Button
+            onClick={handleModelButtonClick}
+            sx={{ 
+              backgroundColor: 'var(--text-color)',
+              color: 'var(--background-color)',
+              fontFamily: 'var(--font-family)',
+              fontSize: '1rem',
+              minWidth: 'auto',
+              padding: '0 4px',
+              height: '1.4rem',
+              lineHeight: 1,
+              border: 'none',
+              borderRadius: 0,
+              textTransform: 'lowercase',
+              '&:hover': {
+                backgroundColor: 'var(--text-color)',
+                opacity: 0.9
+              }
+            }}
           >
-            <Menu />
-          </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            ChatDIY
+            [change model]
+          </Button>
+          <Typography variant="h6" sx={{ 
+            fontFamily: 'var(--font-family)',
+            color: 'var(--text-color)',
+            fontSize: '1rem',
+            letterSpacing: '0.02em',
+            flexGrow: 0
+          }}>
+            $ chat_terminal
           </Typography>
-          <IconButton color="inherit" onClick={() => setSettingsOpen(true)}>
-            <Settings />
-          </IconButton>
+          <Button
+            onClick={() => setSettingsOpen(true)}
+            sx={{ 
+              backgroundColor: 'var(--text-color)',
+              color: 'var(--background-color)',
+              fontFamily: 'var(--font-family)',
+              fontSize: '1rem',
+              minWidth: 'auto',
+              padding: '0 4px',
+              height: '1.4rem',
+              lineHeight: 1,
+              border: 'none',
+              borderRadius: 0,
+              textTransform: 'lowercase',
+              '&:hover': {
+                backgroundColor: 'var(--text-color)',
+                opacity: 0.9
+              }
+            }}
+          >
+            [api keys]
+          </Button>
         </Toolbar>
       </AppBar>
 
-      <Drawer
-        anchor="left"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-      >
-        <List sx={{ width: 250 }}>
-          {Object.entries(MODELS).map(([key, model]) => (
-            <ListItem 
-              button 
-              key={key}
-              selected={currentModel === key}
-              onClick={() => {
-                setCurrentModel(key);
-                setDrawerOpen(false);
-              }}
-            >
-              <ListItemText primary={model.label} />
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
+      <Box sx={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        p: 2, 
+        backgroundColor: 'var(--background-color)',
+        fontFamily: 'var(--font-family)'
+      }} className="terminal-output">
+        {messages.map((message, index) => (
+          <Box
+            key={index}
+            className="terminal-line"
+          >
+            {message.role === 'user' ? (
+              <Typography component="div" sx={{ 
+                fontFamily: 'var(--font-family)',
+                mb: 1
+              }}>
+                You: {message.content}
+              </Typography>
+            ) : (
+              <Box className="message">
+                <Typography 
+                  component="div" 
+                  sx={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '0.9rem',
+                    mb: 1,
+                    opacity: 0.7
+                  }}
+                >
+                  {message.model?.label || MODELS[currentModel].label}
+                </Typography>
+                {typeof message.content === 'string' ? (
+                  <ReactMarkdown
+                    components={{
+                      pre: CodeBlock,
+                      table: TableBlock
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : (
+                  message.content
+                )}
+              </Box>
+            )}
+          </Box>
+        ))}
+        <div ref={messagesEndRef} />
+      </Box>
 
-      <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)}>
-        <DialogTitle>API Settings</DialogTitle>
+      <Box sx={{ 
+        p: 2, 
+        borderTop: 'var(--border-thickness) solid var(--border-color)', 
+        backgroundColor: 'var(--background-color)'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography sx={{ 
+            fontFamily: 'var(--font-family)',
+            color: 'var(--text-color)',
+            opacity: 0.7,
+            userSelect: 'none',
+            mr: 1
+          }}>
+            $
+          </Typography>
+          <Box sx={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+            <TextField
+              fullWidth
+              variant="standard"
+              placeholder={isFocused ? "" : "Type your command..."}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              disabled={isLoading}
+              multiline={false}
+              className="terminal-input"
+              InputProps={{
+                disableUnderline: true,
+                sx: {
+                  fontFamily: 'var(--font-family)',
+                  fontSize: '1rem',
+                  height: '24px',
+                  lineHeight: '24px'
+                }
+              }}
+            />
+            {!isLoading && isFocused && (
+              <Box 
+                component="span"
+                className="input-cursor"
+                sx={{ 
+                  position: 'absolute',
+                  left: `${input.length}ch`,
+                  height: '1.2em',
+                  top: '50%',
+                  transform: 'translateY(-50%)'
+                }}
+              />
+            )}
+          </Box>
+        </Box>
+      </Box>
+
+      <Dialog 
+        open={settingsOpen} 
+        onClose={() => setSettingsOpen(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: 'var(--background-color)',
+            color: 'var(--text-color)',
+            border: 'var(--border-thickness) solid var(--border-color)',
+            fontFamily: 'var(--font-family)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: 'var(--font-family)' }}>API Settings</DialogTitle>
         <DialogContent>
-          <TextField
-            fullWidth
-            margin="normal"
-            label="OpenAI API Key"
-            type="password"
-            value={apiKeys.openai}
-            onChange={(e) => setApiKeys(prev => ({ ...prev, openai: e.target.value }))}
-          />
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Anthropic API Key"
-            type="password"
-            value={apiKeys.anthropic}
-            onChange={(e) => setApiKeys(prev => ({ ...prev, anthropic: e.target.value }))}
-          />
-          <TextField
-            fullWidth
-            margin="normal"
-            label="XAI API Key"
-            type="password"
-            value={apiKeys.xai}
-            onChange={(e) => setApiKeys(prev => ({ ...prev, xai: e.target.value }))}
-          />
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Perplexity API Key"
-            type="password"
-            value={apiKeys.perplexity}
-            onChange={(e) => setApiKeys(prev => ({ ...prev, perplexity: e.target.value }))}
-          />
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Deepseek API Key"
-            type="password"
-            value={apiKeys.deepseek}
-            onChange={(e) => setApiKeys(prev => ({ ...prev, deepseek: e.target.value }))}
-          />
+          {Object.entries(apiKeys).map(([key, value]) => (
+            <TextField
+              key={key}
+              fullWidth
+              margin="normal"
+              label={`${key.toUpperCase()} API Key`}
+              type="password"
+              value={value}
+              onChange={(e) => setApiKeys(prev => ({ ...prev, [key]: e.target.value }))}
+              className="terminal-input"
+              variant="standard"
+              InputProps={{
+                sx: { fontFamily: 'var(--font-family)' }
+              }}
+              InputLabelProps={{
+                sx: { fontFamily: 'var(--font-family)' }
+              }}
+            />
+          ))}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSettingsOpen(false)}>Cancel</Button>
-          <Button onClick={() => {
-            saveApiKeys(apiKeys);
-            setSettingsOpen(false);
-          }}>Save</Button>
-        </DialogActions>
-      </Dialog>
-
-      <Container maxWidth="md" sx={{ mt: 8, mb: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <Paper 
-          elevation={3} 
-          sx={{ 
-            flex: 1, 
-            mb: 2, 
-            p: 2, 
-            overflow: 'auto',
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
-          {messages.map((message, index) => (
-            <Box
-              key={index}
-              sx={{
-                mb: 2,
-                alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '80%'
-              }}
-            >
-              <Paper
-                elevation={1}
-                sx={{
-                  p: 2,
-                  backgroundColor: message.role === 'user' ? 'primary.light' : 'grey.100'
-                }}
-              >
-                <ReactMarkdown>{message.content}</ReactMarkdown>
-              </Paper>
-            </Box>
-          ))}
-          <div ref={messagesEndRef} />
-        </Paper>
-
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder="Type your message..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
+          <Button 
+            onClick={() => setSettingsOpen(false)}
+            sx={{ 
+              color: 'var(--text-color)',
+              fontFamily: 'var(--font-family)',
+              '&:hover': {
+                backgroundColor: 'var(--background-color-alt)'
               }
             }}
-            disabled={isLoading}
-            multiline
-            maxRows={4}
-          />
-          <Button
-            variant="contained"
-            onClick={handleSend}
-            disabled={isLoading}
-            sx={{ minWidth: 100 }}
           >
-            <Send />
+            Cancel
           </Button>
-        </Box>
-      </Container>
+          <Button 
+            onClick={() => {
+              saveApiKeys(apiKeys);
+              setSettingsOpen(false);
+            }}
+            sx={{ 
+              color: 'var(--text-color)',
+              fontFamily: 'var(--font-family)',
+              '&:hover': {
+                backgroundColor: 'var(--background-color-alt)'
+              }
+            }}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
