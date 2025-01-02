@@ -45,6 +45,10 @@ const MODELS = {
     parameters: {
       temperature: 0.7,
       max_tokens: 4096
+    },
+    pricing: {
+      input: 0.0008,   // $0.80/M tokens
+      output: 0.004    // $4.00/M tokens
     }
   },
   'claude-sonnet': {
@@ -54,6 +58,10 @@ const MODELS = {
     parameters: {
       temperature: 0.7,
       max_tokens: 4096
+    },
+    pricing: {
+      input: 0.003,    // $3.00/M tokens
+      output: 0.015    // $15.00/M tokens
     }
   },
   'gpt-4o': {
@@ -66,6 +74,10 @@ const MODELS = {
     },
     parameterMap: {
       max_tokens: 'max_tokens'
+    },
+    pricing: {
+      input: 0.0025,   // $2.50/M tokens
+      output: 0.01     // $10.00/M tokens
     }
   },
   'o1-mini': {
@@ -78,6 +90,10 @@ const MODELS = {
     },
     parameterMap: {
       max_tokens: 'max_completion_tokens'
+    },
+    pricing: {
+      input: 0.003,    // $3.00/M tokens
+      output: 0.012    // $12.00/M tokens
     }
   },
   'grok-beta': {
@@ -87,15 +103,23 @@ const MODELS = {
     parameters: {
       temperature: 0.6,
       max_tokens: 2048
+    },
+    pricing: {
+      input: 0.005,    // $5.00/M tokens
+      output: 0.015    // $15.00/M tokens
     }
   },
-  'grok-2-1212': {
+  'grok-2': {
     backend: 'xai',
-    modelId: 'grok-2-1212',
+    modelId: 'grok-2',
     label: 'Grok 2',
     parameters: {
       temperature: 0.5,
       max_tokens: 1024
+    },
+    pricing: {
+      input: 0.002,    // $2.00/M tokens
+      output: 0.01     // $10.00/M tokens
     }
   },
   'llama-3.1-small': {
@@ -105,6 +129,10 @@ const MODELS = {
     parameters: {
       temperature: 0.7,
       max_tokens: 4096
+    },
+    pricing: {
+      input: 0.0002,   // $0.20/M tokens + $5/1K requests
+      output: 0.0002   // $0.20/M tokens + $5/1K requests
     }
   },
   'llama-3.1-large': {
@@ -114,6 +142,10 @@ const MODELS = {
     parameters: {
       temperature: 0.7,
       max_tokens: 4096
+    },
+    pricing: {
+      input: 0.001,    // $1.00/M tokens + $5/1K requests
+      output: 0.001    // $1.00/M tokens + $5/1K requests
     }
   },
   'llama-3.1-huge': {
@@ -123,6 +155,10 @@ const MODELS = {
     parameters: {
       temperature: 0.7,
       max_tokens: 4096
+    },
+    pricing: {
+      input: 0.005,    // $5.00/M tokens + $5/1K requests
+      output: 0.005    // $5.00/M tokens + $5/1K requests
     }
   },
   'deepseek-chat': {
@@ -132,8 +168,82 @@ const MODELS = {
     parameters: {
       temperature: 0.7,
       max_tokens: 4096
+    },
+    pricing: {
+      input: 0.00027,  // $0.27/M tokens
+      output: 0.0011   // $1.10/M tokens
+    }
+  },
+  'gemini-2.0-flash-exp': {
+    backend: 'gemini',
+    modelId: 'gemini-2.0-flash-exp',
+    label: 'Gemini 2.0 Flash',
+    parameters: {
+      temperature: 0.7,
+      max_tokens: 4096
+    },
+    pricing: {
+      input: 0,    // Currently free - pricing TBA
+      output: 0    // Currently free - pricing TBA
+    }
+  },
+  'gemini-1.5-flash': {
+    backend: 'gemini',
+    modelId: 'gemini-1.5-flash',
+    label: 'Gemini 1.5 Flash',
+    parameters: {
+      temperature: 0.7,
+      max_tokens: 4096
+    },
+    pricing: {
+      input: 0,    // Currently free - pricing TBA
+      output: 0    // Currently free - pricing TBA
+    }
+  },
+  'gemini-1.5-flash-8b': {
+    backend: 'gemini',
+    modelId: 'gemini-1.5-flash-8b',
+    label: 'Gemini 1.5 Flash 8B',
+    parameters: {
+      temperature: 0.7,
+      max_tokens: 4096
+    },
+    pricing: {
+      input: 0,    // Currently free - pricing TBA
+      output: 0    // Currently free - pricing TBA
+    }
+  },
+  'gemini-1.5-pro': {
+    backend: 'gemini',
+    modelId: 'gemini-1.5-pro',
+    label: 'Gemini 1.5 Pro',
+    parameters: {
+      temperature: 0.7,
+      max_tokens: 4096
+    },
+    pricing: {
+      input: 0,    // Currently free - pricing TBA
+      output: 0    // Currently free - pricing TBA
     }
   }
+};
+
+// Helper function to calculate cost
+const calculateCost = (inputTokens, outputTokens, model) => {
+  const inputCost = (inputTokens / 1000) * model.pricing.input;
+  const outputCost = (outputTokens / 1000) * model.pricing.output;
+  
+  // Add Perplexity's fixed request fee
+  const fixedCost = model.backend === 'perplexity' ? 0.005 : 0; // $5/1K requests = $0.005 per request
+  
+  return {
+    total: inputCost + outputCost + fixedCost,
+    input: inputCost,
+    output: outputCost,
+    fixedCost,
+    inputTokens,
+    outputTokens
+  };
 };
 
 async function initDB() {
@@ -278,7 +388,8 @@ function App() {
     anthropic: '',
     xai: '',
     perplexity: '',
-    deepseek: ''
+    deepseek: '',
+    gemini: ''
   });
   const [isFocused, setIsFocused] = useState(false);
   
@@ -297,7 +408,17 @@ function App() {
       const db = await initDB();
       const keys = await db.get(STORE_NAME, 'api-keys');
       if (keys) {
-        setApiKeys(keys);
+        // Ensure all required keys exist
+        const updatedKeys = {
+          openai: '',
+          anthropic: '',
+          xai: '',
+          perplexity: '',
+          deepseek: '',
+          gemini: '',
+          ...keys
+        };
+        setApiKeys(updatedKeys);
         
         // Only show welcome message if messages array is empty
         if (messages.length === 0) {
@@ -515,9 +636,10 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
       // Format messages for API calls - convert React components to strings
       const formattedMessages = messages
         .filter(msg => 
-          // Exclude system messages and React component messages
-          msg.role !== 'assistant' || 
-          (typeof msg.content === 'string' && msg.model?.id !== 'system')
+          // Exclude system messages, React component messages, and model switch messages
+          (msg.role !== 'assistant' || (typeof msg.content === 'string' && msg.model?.id !== 'system')) &&
+          // Exclude model switch messages (messages that are just model keys)
+          !(msg.role === 'user' && Object.keys(MODELS).includes(msg.content))
         )
         .map(msg => ({
           role: msg.role,
@@ -546,6 +668,11 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
           ...apiParams
         });
         response = completion.choices[0].message;
+        response.usage = {
+          inputTokens: completion.usage.prompt_tokens,
+          outputTokens: completion.usage.completion_tokens,
+          cost: calculateCost(completion.usage.prompt_tokens, completion.usage.completion_tokens, model)
+        };
       } else if (model.backend === 'anthropic') {
         try {
           const apiResponse = await fetch('https://api.anthropic.com/v1/messages', {
@@ -580,8 +707,14 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
           if (completion.content && completion.content[0] && completion.content[0].text) {
             response = { 
               role: 'assistant', 
-              content: completion.content[0].text 
+              content: completion.content[0].text,
+              usage: {
+                inputTokens: completion.usage?.input_tokens || Math.ceil(formattedMessages.reduce((acc, msg) => acc + msg.content.length / 4, 0)),
+                outputTokens: completion.usage?.output_tokens || Math.ceil(completion.content[0].text.length / 4),
+                cost: null // Will be calculated below
+              }
             };
+            response.usage.cost = calculateCost(response.usage.inputTokens, response.usage.outputTokens, model);
           } else {
             throw new Error('Invalid response format from Anthropic API');
           }
@@ -615,6 +748,13 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
           
           if (completion.choices && completion.choices[0] && completion.choices[0].message) {
             response = completion.choices[0].message;
+            // Estimate tokens since xAI doesn't provide token counts
+            response.usage = {
+              inputTokens: Math.ceil(formattedMessages.reduce((acc, msg) => acc + msg.content.length / 4, 0)),
+              outputTokens: Math.ceil(response.content.length / 4),
+              cost: null // Will be calculated below
+            };
+            response.usage.cost = calculateCost(response.usage.inputTokens, response.usage.outputTokens, model);
           } else {
             throw new Error('Invalid response format from XAI API');
           }
@@ -668,6 +808,12 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
           
           if (completion.choices && completion.choices[0] && completion.choices[0].message) {
             response = completion.choices[0].message;
+            response.usage = {
+              inputTokens: completion.usage?.prompt_tokens || Math.ceil(formattedPerplexityMessages.reduce((acc, msg) => acc + msg.content.length / 4, 0)),
+              outputTokens: completion.usage?.completion_tokens || Math.ceil(response.content.length / 4),
+              cost: null // Will be calculated below
+            };
+            response.usage.cost = calculateCost(response.usage.inputTokens, response.usage.outputTokens, model);
           } else {
             throw new Error('Invalid response format from Perplexity API');
           }
@@ -690,6 +836,53 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
         });
         
         response = completion.choices[0].message;
+        response.usage = {
+          inputTokens: completion.usage?.prompt_tokens || Math.ceil(formattedMessages.reduce((acc, msg) => acc + msg.content.length / 4, 0)),
+          outputTokens: completion.usage?.completion_tokens || Math.ceil(response.content.length / 4),
+          cost: null // Will be calculated below
+        };
+        response.usage.cost = calculateCost(response.usage.inputTokens, response.usage.outputTokens, model);
+      } else if (model.backend === 'gemini') {
+        const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+        const genAI = new GoogleGenerativeAI(apiKeys.gemini);
+        const geminiModel = genAI.getGenerativeModel({ model: model.modelId });
+
+        // Convert chat history to Gemini format
+        const chatHistory = formattedMessages.slice(0, -1).map(msg => ({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }]
+        }));
+
+        const result = await geminiModel.generateContent({
+          contents: [
+            ...chatHistory,
+            {
+              role: 'user',
+              parts: [{ text: userMessage.content }]
+            }
+          ],
+          generationConfig: {
+            temperature: model.parameters.temperature,
+            maxOutputTokens: model.parameters.max_tokens,
+          },
+        });
+
+        const responseText = result.response.text();
+        
+        // Estimate token counts since Gemini doesn't provide them directly
+        const inputTokens = Math.ceil(formattedMessages.reduce((acc, msg) => acc + msg.content.length / 4, 0));
+        const outputTokens = Math.ceil(responseText.length / 4);
+
+        response = {
+          role: 'assistant',
+          content: responseText,
+          usage: {
+            inputTokens,
+            outputTokens,
+            cost: calculateCost(inputTokens, outputTokens, model)
+          }
+        };
       }
 
       setMessages(prev => [...prev, {
@@ -698,7 +891,8 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
         model: {
           label: model.label,
           id: currentModel
-        }
+        },
+        usage: response.usage
       }]);
     } catch (error) {
       console.error('Error:', error);
@@ -839,10 +1033,28 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
                       fontSize: '1rem',
                       mb: 1,
                       opacity: 0.7,
-                      textTransform: 'uppercase'
+                      textTransform: 'uppercase',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
                     }}
                   >
-                    {message.model?.label || MODELS[currentModel].label}
+                    <span>
+                      {message.model?.label || MODELS[currentModel].label}
+                    </span>
+                    {message.usage?.cost && (
+                      <span style={{ 
+                        fontSize: '0.8rem',
+                        opacity: 0.7,
+                        textTransform: 'none'
+                      }}>
+                        {message.usage.inputTokens + message.usage.outputTokens} tokens; {
+                          message.usage.cost.total < 0.0001 
+                            ? '<0.01¢'
+                            : `${(message.usage.cost.total * 100).toFixed(2)}¢`
+                        }
+                      </span>
+                    )}
                   </Typography>
                   {typeof message.content === 'string' ? (
                     <ReactMarkdown
