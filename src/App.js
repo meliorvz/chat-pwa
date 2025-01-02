@@ -442,6 +442,7 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
     * xAI (Grok): [Get API key](https://console.x.ai/)
     * Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
     * DeepSeek: [Get API key](https://platform.deepseek.com/api)
+    * Gemini: [Get API key](https://aistudio.google.com) ***CURRENTLY FREE!***
 2. Click the [api] button in the top right to add your API keys
 3. Select a model using the [model] button
 4. Start chatting!
@@ -512,6 +513,7 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
     * xAI (Grok): [Get API key](https://x.ai)
     * Perplexity (Llama): [Get API key](https://www.perplexity.ai/settings/api)
     * DeepSeek: [Get API key](https://platform.deepseek.com/api)
+    * Gemini: [Get API key](https://aistudio.google.com)  ***CURRENTLY FREE!***
 2. Click the [api] button in the top right to add your API keys
 3. Select a model using the [model] button
 4. Start chatting!
