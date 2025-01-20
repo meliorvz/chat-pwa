@@ -295,8 +295,12 @@ textarea {
 
 /* Code block styling */
 .message pre {
-  padding: 0.25rem;
+  position: relative;
   background-color: var(--background-color-alt);
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+  border: var(--border-thickness) solid var(--border-color);
 }
 
 .message code {
@@ -508,4 +512,38 @@ textarea {
 
 .terminal-input.MuiInput-underline.Mui-focused {
   border-bottom: var(--border-thickness) solid var(--text-color) !important;
+}
+
+/* Details/Summary styling */
+.message details {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  border: var(--border-thickness) solid var(--border-color);
+  background-color: var(--background-color-alt);
+}
+
+.message details summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.5rem;
+  margin: -0.5rem;
+  border-bottom: var(--border-thickness) solid transparent;
+}
+
+.message details[open] summary {
+  border-bottom: var(--border-thickness) solid var(--border-color);
+  margin-bottom: 0.5rem;
+}
+
+.message details summary::-webkit-details-marker {
+  display: none;
+}
+
+.message details summary:before {
+  content: "▶︎ ";
+  font-size: 0.8em;
+}
+
+.message details[open] summary:before {
+  content: "▼ ";
 } 

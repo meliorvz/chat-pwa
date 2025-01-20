@@ -30,6 +30,7 @@ import {
 } from '@mui/material';
 import { Settings, Send, Menu } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import OpenAI from 'openai';
 import { openDB } from 'idb';
 import './styles/terminal.css';
@@ -172,6 +173,18 @@ const MODELS = {
     pricing: {
       input: 0.00027,  // $0.27/M tokens
       output: 0.0011   // $1.10/M tokens
+    }
+  },
+  'deepseek-reasoner': {
+    backend: 'deepseek',
+    modelId: 'deepseek-reasoner',
+    label: 'DeepSeek Reasoner',
+    parameters: {
+      max_tokens: 8192  // Maximum allowed is 8K
+    },
+    pricing: {
+      input: 0.00055,   // $0.55/M tokens
+      output: 0.00219   // $2.19/M tokens
     }
   },
   'gemini-2.0-flash-exp': {
@@ -833,11 +846,31 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
         const completion = await openai.chat.completions.create({
           model: model.modelId,
           messages: formattedMessages,
-          temperature: model.parameters.temperature,
           max_tokens: model.parameters.max_tokens
         });
         
         response = completion.choices[0].message;
+        
+        // For DeepSeek Reasoner, display reasoning content but don't include it in message history
+        if (model.modelId === 'deepseek-reasoner' && response.reasoning_content) {
+          // Store the original content for message history
+          const originalContent = response.content;
+          
+          // Format display content with collapsible Chain of Thought
+          response.display_content = `<details>
+<summary>Chain of Thought (click to expand)</summary>
+
+\`\`\`markdown
+${response.reasoning_content}
+\`\`\`
+</details>
+
+${response.content}`;
+          
+          // Keep original content for message history
+          response.content = originalContent;
+        }
+        
         response.usage = {
           inputTokens: completion.usage?.prompt_tokens || Math.ceil(formattedMessages.reduce((acc, msg) => acc + msg.content.length / 4, 0)),
           outputTokens: completion.usage?.completion_tokens || Math.ceil(response.content.length / 4),
@@ -889,7 +922,8 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
 
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: response.content || response,
+        // Use display_content if available (for DeepSeek Reasoner), otherwise use regular content
+        content: response.display_content || response.content || response,
         model: {
           label: model.label,
           id: currentModel
@@ -1062,8 +1096,11 @@ ChatDIY enables you to interact with various AI models through their APIs in a c
                     <ReactMarkdown
                       components={{
                         pre: CodeBlock,
-                        table: TableBlock
+                        table: TableBlock,
+                        details: ({ node, ...props }) => <details {...props} />,
+                        summary: ({ node, ...props }) => <summary {...props} />
                       }}
+                      rehypePlugins={[rehypeRaw]}
                     >
                       {message.content}
                     </ReactMarkdown>
