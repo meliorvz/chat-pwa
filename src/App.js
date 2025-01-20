@@ -183,8 +183,8 @@ const MODELS = {
       max_tokens: 8192  // Maximum allowed is 8K
     },
     pricing: {
-      input: 0.00055,   // $0.40/M tokens
-      output: 0.00219   // $1.60/M tokens
+      input: 0.00055,   // $0.55/M tokens
+      output: 0.00219   // $2.19/M tokens
     }
   },
   'gemini-2.0-flash-exp': {
